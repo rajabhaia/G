@@ -19,12 +19,16 @@ try:
     from pyrogram import Client, filters
     from pyrogram.types import Message, User
     from pyrogram.errors import FloodWait, UserNotParticipant
-    from pytgcalls import PyTgCalls
-    from pytgcalls.types import AudioPiped
-    from pytgcalls.types.input_stream import AudioParameters
+    try:
+        from pytgcalls import PyTgCalls
+        from pytgcalls.types import AudioPiped
+        from pytgcalls.types.input_stream import AudioParameters
+    except ImportError:
+        from pytgcalls import GroupCallFactory
 except ImportError as e:
     print(f"ImportError: {e}")
-    print("Please ensure all dependencies are installed: pip3 install pyrogram pytgcalls")
+    print("Please ensure all dependencies are installed: pip3 install pyrogram==2.0.106 pytgcalls==2.1.0")
+    print("If pytgcalls fails, try: pip3 install --force-reinstall pytgcalls==2.1.0")
     exit(1)
 
 # ====================== CONFIG ==========================
@@ -302,7 +306,21 @@ ff_song = FFmpegProcess(process_type="song")
 audio_settings = AudioSettings()
 security_system = SecuritySystem()
 app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
-call = PyTgCalls(app)
+
+# Initialize PyTgCalls or fallback to GroupCallFactory
+try:
+    call = PyTgCalls(app)
+    USE_GROUP_CALL_FACTORY = False
+except ImportError as e:
+    print(f"PyTgCalls not found: {e}")
+    print("Falling back to GroupCallFactory...")
+    try:
+        call = GroupCallFactory(app, GroupCallFactory.MTPROTO_CLIENT_TYPE_PYROGRAM).get_group_call()
+        USE_GROUP_CALL_FACTORY = True
+    except Exception as e:
+        print(f"Failed to initialize GroupCallFactory: {e}")
+        print("Please reinstall pytgcalls: pip3 install --force-reinstall pytgcalls==2.1.0")
+        exit(1)
 
 # Store active chats
 active_chats: Set[int] = set()
@@ -524,7 +542,7 @@ async def is_allowed(user_id: int, chat_id: int) -> bool:
 # ================== STREAMING FUNCTIONS ==================
 
 async def start_stream(chat_id: int, for_song: bool = False, song_path: str = None):
-    """Start audio stream with FFmpeg and PyTgCalls"""
+    """Start audio stream with FFmpeg and PyTgCalls/GroupCallFactory"""
     if not command_exists("ffmpeg"):
         raise Exception("FFmpeg is not installed or not found in PATH")
     
@@ -548,16 +566,18 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             raise Exception(f"Failed to start FFmpeg: {e}")
 
     try:
-        await call.join_group_call(
-            chat_id,
-            AudioPiped(
-                output_path,
-                AudioParameters(
-                    bitrate=48000,
-                    channels=audio_settings.settings["channels"]
-                )
-            ),
-        )
+        stream_params = AudioPiped(
+            output_path,
+            AudioParameters(
+                bitrate=48000,
+                channels=audio_settings.settings["channels"]
+            )
+        ) if not USE_GROUP_CALL_FACTORY else output_path
+        if USE_GROUP_CALL_FACTORY:
+            await call.start(chat_id)
+            await call.play(stream_params)
+        else:
+            await call.join_group_call(chat_id, stream_params)
         active_chats.add(chat_id)
         # Send join notification to group
         if chat_id in ALLOWED_GROUP_IDS:
@@ -574,7 +594,10 @@ async def stop_stream(chat_id: int):
     """Stop audio stream and clean up"""
     try:
         if chat_id in active_chats:
-            await call.leave_group_call(chat_id)
+            if USE_GROUP_CALL_FACTORY:
+                await call.stop()
+            else:
+                await call.leave_group_call(chat_id)
             active_chats.remove(chat_id)
             # Send leave notification to group
             if chat_id in ALLOWED_GROUP_IDS:
@@ -734,7 +757,7 @@ async def cmd_off(client, message: Message):
 async def cmd_status(client, message: Message):
     mic_status = "RUNNING" if ff_mic.is_running() else "STOPPED"
     song_status = "RUNNING" if ff_song.is_running() else "STOPPED"
-    call_status = "IN_CALL" if call.get_call(message.chat.id) else "NOT_IN_CALL"
+    call_status = "IN_CALL" if active_chats else "NOT_IN_CALL"
     active_chats_list = ", ".join(str(chat) for chat in active_chats) if active_chats else "None"
     
     reply = await message.reply_text(
@@ -934,7 +957,8 @@ async def main():
     try:
         await log_event("BOT_STARTING", "Carnal Live Mic Userbot is starting up...")
         await app.start()
-        await call.start()
+        if not USE_GROUP_CALL_FACTORY:
+            await call.start()
         
         startup_msg = """
 ✅ **Carnal Live Mic Userbot Started!**
