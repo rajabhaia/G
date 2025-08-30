@@ -44,7 +44,7 @@ except ImportError:
 API_ID = 27494996
 API_HASH = "791274de917e999ebab112e60f3a163e"
 SESSION_NAME = "carnal_bot"
-SESSION_STRING = "BQGjilQAk2YfqjsMhrMKSeOlImREH0a1wx-x1FAOyO-8EcUSqiXqEFUXtshDGLdVeUDYheKHiNzf0Rl_mUkyzBQSGU-G1Pme0jEpJx37VA4XOapQlGv4qD7dqXw44vC7m5hzoT2esgTJH4TkOwnY3XSCoxttoZYk881AyV5grFbX43s6buAgbiCLdk1nRCJMgKQkH6fT8v9bZVFsyiK0fNl40Cfmc8QKVxjOBrP73Iogq2OPWTrwUQw8ouGNhvjcC68NZHulZpdhUC1HqKu3kJrOQ-u3q4Wk9o407pJLQ2mEnl0pRTH3pm1GVMw5vfWsqD6LFlv7sikt1-1VdbpCv7AnX6SRsQAAAAHq0DIpAA"
+SESSION_STRING = "BQGjilQAk2YfqjsMhrMKSeOlImREH0a1wx-x1FAOyO-8EcUSqiXqEFUXtshDGLdVeUDYheKHiNzf0Rl_mUkyzBQSGU-G1Pme0jEpJx37VA4XOapQlGv4qD7dqXw44vC7m5hzoT2esgTJH4TkOwnY3XSCoxttoZYk881AyV5grFbX43s6buAgbiCLdk1nRCJMgKQkH6fT8v9bZVFsyiK0fNl40Cfmc8QKVxjOBrP73Iogq2OPWTrUQQw8ouGNhvjcC68NZHulZpdhUC1HqKu3kJrOQ-u3q4Wk9o407pJLQ2mEnl0pRTH3pm1GVMw5vfWsqD6LFlv7sikt1-1VdbpCv7AnX6SRsQAAAAHq0DIpAA"
 
 # ADMIN CONFIGURATION
 ADMIN_IDS = [8234480169]  # Replace with your User ID
@@ -319,8 +319,8 @@ app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH, session_string=SESS
 # Initialize pytgcalls
 if USE_GROUP_CALL_FACTORY:
     print("Using GroupCallFactory for pytgcalls...")
-    # FIX: The MTPROTO_CLIENT_TYPE_PYROGRAM attribute is no longer needed
-    call = GroupCallFactory(app).get_group_call()
+    # FIX: The GroupCallFactory object is now the call instance itself
+    call = GroupCallFactory(app)
 else:
     print("Using PyTgCalls...")
     call = PyTgCalls(app)
