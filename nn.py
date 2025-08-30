@@ -610,7 +610,7 @@ async def stop_stream(chat_id: int):
                     await app.send_message(chat_id, "🔴 **Carnal Bot** has left the voice chat! ❌")
                     await log_event("VOICE_CHAT_LEFT", f"Chat ID: {chat_id}")
                 except Exception as e:
-                    print(f"Error sending leave notification: {e}")
+                    print(f"Error leaving call: {e}")
     except Exception as e:
         print(f"Error leaving call: {e}")
     
@@ -931,16 +931,16 @@ async def cmd_unblock(client, message: Message):
 
 # ================== EVENT HANDLERS ==================
 
-@app.on_message(filters.voice_chat_started)
+@app.on_message(filters.video_chat_started)
 async def voice_chat_started(client, message: Message):
     await log_event("VOICE_CHAT_STARTED", f"Chat: {message.chat.title}\nID: {message.chat.id}")
 
-@app.on_message(filters.voice_chat_ended)
+@app.on_message(filters.video_chat_ended)
 async def voice_chat_ended(client, message: Message):
     await log_event("VOICE_CHAT_ENDED", f"Chat: {message.chat.title}\nID: {message.chat.id}")
     await stop_stream(message.chat.id)
 
-@app.on_message(filters.voice_chat_members_invited)
+@app.on_message(filters.video_chat_members_invited)
 async def voice_chat_invited(client, message: Message):
     await log_event("VOICE_CHAT_INVITED", f"Chat: {message.chat.title}\nID: {message.chat.id}")
 
