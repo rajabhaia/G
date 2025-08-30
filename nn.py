@@ -15,12 +15,17 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Set
 
-from pyrogram import Client, filters
-from pyrogram.types import Message, User
-from pyrogram.errors import FloodWait, UserNotParticipant
-from pytgcalls import PyTgCalls
-from pytgcalls.types import AudioPiped
-from pytgcalls.types.input_stream import AudioParameters
+try:
+    from pyrogram import Client, filters
+    from pyrogram.types import Message, User
+    from pyrogram.errors import FloodWait, UserNotParticipant
+    from pytgcalls import PyTgCalls
+    from pytgcalls.types import AudioPiped
+    from pytgcalls.types.input_stream import AudioParameters
+except ImportError as e:
+    print(f"ImportError: {e}")
+    print("Please ensure all dependencies are installed: pip3 install pyrogram pytgcalls")
+    exit(1)
 
 # ====================== CONFIG ==========================
 API_ID = 27494996
@@ -368,7 +373,8 @@ def check_node_version() -> bool:
         version = result.stdout.strip().lstrip("v")
         major_version = int(version.split(".")[0])
         return major_version >= 15
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"Node.js check failed: {e}")
         return False
 
 # ================== NOTIFICATION FUNCTIONS ==================
@@ -686,11 +692,11 @@ async def cmd_help(client, message: Message):
 • `/warn` or `/warnings` - Check user warnings (reply to user)
 
 🔒 **Auto Security Features:**
-- Anti-spam protection (max 5 messages/10s)
-- Bad words filtering
-- Phone number filtering
-- OTP/sensitive code filtering
-- Auto-warning system (3 warnings = 1-hour ban)
+• Anti-spam protection (max 5 messages/10s)
+• Bad words filtering
+• Phone number filtering
+• OTP/sensitive code filtering
+• Auto-warning system (3 warnings = 1-hour ban)
 
 📊 **Status Commands:**
 • `/status` - Show bot and stream status
