@@ -319,7 +319,8 @@ app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH, session_string=SESS
 # Initialize pytgcalls
 if USE_GROUP_CALL_FACTORY:
     print("Using GroupCallFactory for pytgcalls...")
-    call = GroupCallFactory(app, GroupCallFactory.MTPROTO_CLIENT_TYPE_PYROGRAM).get_group_call()
+    # FIX: The MTPROTO_CLIENT_TYPE_PYROGRAM attribute is no longer needed
+    call = GroupCallFactory(app).get_group_call()
 else:
     print("Using PyTgCalls...")
     call = PyTgCalls(app)
