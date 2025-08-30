@@ -19,17 +19,26 @@ try:
     from pyrogram import Client, filters
     from pyrogram.types import Message, User
     from pyrogram.errors import FloodWait, UserNotParticipant
-    try:
-        from pytgcalls import PyTgCalls
-        from pytgcalls.types import AudioPiped
-        from pytgcalls.types.input_stream import AudioParameters
-    except ImportError:
-        from pytgcalls import GroupCallFactory
 except ImportError as e:
     print(f"ImportError: {e}")
-    print("Please ensure all dependencies are installed: pip3 install pyrogram==2.0.106 pytgcalls==2.1.0")
-    print("If pytgcalls fails, try: pip3 install --force-reinstall pytgcalls==2.1.0")
+    print("Please ensure pyrogram is installed: pip3 install pyrogram==2.0.106")
     exit(1)
+
+# Try importing pytgcalls components
+USE_GROUP_CALL_FACTORY = False
+try:
+    from pytgcalls import PyTgCalls
+    from pytgcalls.types import AudioPiped
+    from pytgcalls.types.input_stream import AudioParameters
+except ImportError:
+    try:
+        from pytgcalls import GroupCallFactory
+        USE_GROUP_CALL_FACTORY = True
+    except ImportError as e:
+        print(f"ImportError: {e}")
+        print("Please ensure pytgcalls is installed: pip3 install pytgcalls==2.1.0")
+        print("If pytgcalls fails, try: pip3 install --force-reinstall pytgcalls==2.1.0")
+        exit(1)
 
 # ====================== CONFIG ==========================
 API_ID = 27494996
@@ -307,20 +316,13 @@ audio_settings = AudioSettings()
 security_system = SecuritySystem()
 app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
-# Initialize PyTgCalls or fallback to GroupCallFactory
-try:
+# Initialize pytgcalls
+if USE_GROUP_CALL_FACTORY:
+    print("Using GroupCallFactory for pytgcalls...")
+    call = GroupCallFactory(app, GroupCallFactory.MTPROTO_CLIENT_TYPE_PYROGRAM).get_group_call()
+else:
+    print("Using PyTgCalls...")
     call = PyTgCalls(app)
-    USE_GROUP_CALL_FACTORY = False
-except ImportError as e:
-    print(f"PyTgCalls not found: {e}")
-    print("Falling back to GroupCallFactory...")
-    try:
-        call = GroupCallFactory(app, GroupCallFactory.MTPROTO_CLIENT_TYPE_PYROGRAM).get_group_call()
-        USE_GROUP_CALL_FACTORY = True
-    except Exception as e:
-        print(f"Failed to initialize GroupCallFactory: {e}")
-        print("Please reinstall pytgcalls: pip3 install --force-reinstall pytgcalls==2.1.0")
-        exit(1)
 
 # Store active chats
 active_chats: Set[int] = set()
@@ -566,18 +568,20 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             raise Exception(f"Failed to start FFmpeg: {e}")
 
     try:
-        stream_params = AudioPiped(
-            output_path,
-            AudioParameters(
-                bitrate=48000,
-                channels=audio_settings.settings["channels"]
+        stream_params = None
+        if not USE_GROUP_CALL_FACTORY:
+            stream_params = AudioPiped(
+                output_path,
+                AudioParameters(
+                    bitrate=48000,
+                    channels=audio_settings.settings["channels"]
+                )
             )
-        ) if not USE_GROUP_CALL_FACTORY else output_path
-        if USE_GROUP_CALL_FACTORY:
+            await call.join_group_call(chat_id, stream_params)
+        else:
+            stream_params = output_path
             await call.start(chat_id)
             await call.play(stream_params)
-        else:
-            await call.join_group_call(chat_id, stream_params)
         active_chats.add(chat_id)
         # Send join notification to group
         if chat_id in ALLOWED_GROUP_IDS:
