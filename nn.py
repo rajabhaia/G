@@ -32,7 +32,7 @@ except ImportError:
         USE_GROUP_CALL_FACTORY = True
     except ImportError as e:
         print(f"ImportError: {e}")
-        print("Please ensure pytgcalls is installed: pip3 install pytgcalls==2.1.0")
+        print("Please ensure pytgcalls is installed: pip3 install pytgcalls")
         exit(1)
 
 # ====================== CONFIG ==========================
@@ -305,8 +305,19 @@ app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH, session_string=SESS
 # Initialize pytgcalls
 if USE_GROUP_CALL_FACTORY:
     print("Using GroupCallFactory for pytgcalls...")
-    group_call_factory = GroupCallFactory(app)
-    call = group_call_factory.get_group_call()
+    try:
+        call = GroupCallFactory(app, GroupCallFactory.MTC_MODE_STREAM).get_group_call()
+    except Exception as e:
+        print(f"Failed to initialize GroupCallFactory: {e}")
+        print("Falling back to PyTgCalls...")
+        try:
+            from pytgcalls import PyTgCalls
+            call = PyTgCalls(app)
+            USE_GROUP_CALL_FACTORY = False
+        except ImportError as e:
+            print(f"Cannot fall back to PyTgCalls: {e}")
+            print("Please install a compatible version of pytgcalls: pip3 install pytgcalls")
+            exit(1)
 else:
     print("Using PyTgCalls...")
     call = PyTgCalls(app)
@@ -549,8 +560,8 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             await call.join_group_call(chat_id, stream_params)
         else:
             stream_params = output_path
-            await call.join(chat_id)  # Use join instead of start for GroupCallFactory
-            await call.play(stream_params)  # Play the audio stream
+            await call.join(chat_id)
+            await call.play(stream_params)
         active_chats.add(chat_id)
         try:
             await app.send_message(chat_id, "🎤 **Carnal Bot** has joined the voice chat! 🚀")
@@ -872,7 +883,7 @@ async def cmd_play(client, message: Message):
 @app.on_message(filters.command(["activevc"]) & allowed_only)
 async def cmd_activevc(client, message: Message):
     if not active_chats:
-        reply = await message.reply_text("❌ 𝙆𝙊𝙄 𝘼𝘾𝙏𝙄𝙑𝙀 𝙑𝙊𝙄𝘾𝙀 𝘾𝙃𝘼𝙏 𝙉𝘼𝙃𝙄 𝙃𝘼𝙄")
+        reply = await message.reply_text("❌ 𝙆𝙊𝙄 𝘼𝘾𝙏𝙄𝙑𝙀 𝙑𝙊𝙄𝘾𝙀 𝘾𝙃𝘼𝙏 𝙉𝘼𝙇𝙄 𝙃𝘼𝙄")
         asyncio.create_task(delete_message_with_delay(reply))
         return
     
