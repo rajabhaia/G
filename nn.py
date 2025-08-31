@@ -549,7 +549,7 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             await call.join_group_call(chat_id, stream_params)
         else:
             stream_params = output_path
-            await call.start(chat_id)  # Start the group call
+            await call.join(chat_id)  # Use join instead of start for GroupCallFactory
             await call.play(stream_params)  # Play the audio stream
         active_chats.add(chat_id)
         try:
@@ -589,6 +589,9 @@ async def stop_stream(chat_id: int):
 async def download_audio(message: Message) -> str:
     target_msg = message.reply_to_message if message.reply_to_message else message
     
+    if not (target_msg.audio or target_msg.voice or target_msg.video or target_msg.document):
+        raise Exception("Please reply to a message containing audio, voice, video, or a document to play")
+    
     if target_msg.audio:
         file_id = target_msg.audio.file_id
     elif target_msg.voice:
@@ -597,8 +600,6 @@ async def download_audio(message: Message) -> str:
         file_id = target_msg.video.file_id
     elif target_msg.document:
         file_id = target_msg.document.file_id
-    else:
-        raise Exception("No audio or video found to play")
     
     try:
         download_path = await target_msg.download()
@@ -839,6 +840,9 @@ async def cmd_play(client, message: Message):
     chat_id = message.chat.id
     
     try:
+        if not message.reply_to_message:
+            raise Exception("Please reply to an audio, voice, video, or document message to play")
+        
         song_path = await download_audio(message)
         await start_stream(chat_id, for_song=True, song_path=song_path)
         reply = await message.reply_text("🎵 𝙎𝙊𝙉𝙂 𝙋𝙇𝘼𝙔𝙄𝙉𝙂... 🎶")
@@ -868,7 +872,7 @@ async def cmd_play(client, message: Message):
 @app.on_message(filters.command(["activevc"]) & allowed_only)
 async def cmd_activevc(client, message: Message):
     if not active_chats:
-        reply = await message.reply_text("❌ 𝙆𝙊𝙄 𝘼𝘾𝙏𝙄𝙑𝙀 𝙑𝙊𝙄𝘾𝙀 𝘾𝙃𝘼𝙏 𝙉𝘼𝙇𝙄 𝙃𝘼𝙄")
+        reply = await message.reply_text("❌ 𝙆𝙊𝙄 𝘼𝘾𝙏𝙄𝙑𝙀 𝙑𝙊𝙄𝘾𝙀 𝘾𝙃𝘼𝙏 𝙉𝘼𝙃𝙄 𝙃𝘼𝙄")
         asyncio.create_task(delete_message_with_delay(reply))
         return
     
