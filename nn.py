@@ -20,20 +20,21 @@ except ImportError as e:
     print("Please ensure pyrogram is installed: pip3 install pyrogram==2.0.106")
     exit(1)
 
-# Try importing pytgcalls components
-USE_GROUP_CALL_FACTORY = False
 try:
-    from pytgcalls import PyTgCalls
-    from pytgcalls.types import AudioPiped
-    from pytgcalls.types.input_stream import AudioParameters
-except ImportError:
-    try:
-        from pytgcalls import GroupCallFactory
-        USE_GROUP_CALL_FACTORY = True
-    except ImportError as e:
-        print(f"ImportError: {e}")
-        print("Please ensure pytgcalls is installed: pip3 install pytgcalls")
-        exit(1)
+    from pytgcalls import GroupCallFactory
+except ImportError as e:
+    print(f"ImportError: {e}")
+    print("Please ensure pytgcalls is installed: pip3 install pytgcalls")
+    exit(1)
+
+# Check pytgcalls version
+try:
+    import pkg_resources
+    pytgcalls_version = pkg_resources.get_distribution("pytgcalls").version
+    print(f"pytgcalls version: {pytgcalls_version}")
+except Exception as e:
+    print(f"Could not determine pytgcalls version: {e}")
+    pytgcalls_version = "unknown"
 
 # ====================== CONFIG ==========================
 API_ID = 27494996
@@ -303,24 +304,13 @@ security_system = SecuritySystem()
 app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
 # Initialize pytgcalls
-if USE_GROUP_CALL_FACTORY:
-    print("Using GroupCallFactory for pytgcalls...")
-    try:
-        call = GroupCallFactory(app, GroupCallFactory.MTC_MODE_STREAM).get_group_call()
-    except Exception as e:
-        print(f"Failed to initialize GroupCallFactory: {e}")
-        print("Falling back to PyTgCalls...")
-        try:
-            from pytgcalls import PyTgCalls
-            call = PyTgCalls(app)
-            USE_GROUP_CALL_FACTORY = False
-        except ImportError as e:
-            print(f"Cannot fall back to PyTgCalls: {e}")
-            print("Please install a compatible version of pytgcalls: pip3 install pytgcalls")
-            exit(1)
-else:
-    print("Using PyTgCalls...")
-    call = PyTgCalls(app)
+print("Using GroupCallFactory for pytgcalls...")
+try:
+    call = GroupCallFactory(app).get_group_call()
+except Exception as e:
+    print(f"Failed to initialize GroupCallFactory: {e}")
+    print("Please ensure pytgcalls is updated to a compatible version (e.g., pip3 install pytgcalls>=3.0.0)")
+    exit(1)
 
 # Store active chats
 active_chats: Set[int] = set()
@@ -549,19 +539,9 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             raise Exception(f"Failed to start FFmpeg: {e}")
 
     try:
-        if not USE_GROUP_CALL_FACTORY:
-            stream_params = AudioPiped(
-                output_path,
-                AudioParameters(
-                    bitrate=48000,
-                    channels=audio_settings.settings["channels"]
-                )
-            )
-            await call.join_group_call(chat_id, stream_params)
-        else:
-            stream_params = output_path
-            await call.join(chat_id)
-            await call.play(stream_params)
+        stream_params = output_path
+        await call.join(chat_id)
+        await call.play(stream_params)
         active_chats.add(chat_id)
         try:
             await app.send_message(chat_id, "🎤 **Carnal Bot** has joined the voice chat! 🚀")
@@ -578,10 +558,7 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
 async def stop_stream(chat_id: int):
     try:
         if chat_id in active_chats:
-            if USE_GROUP_CALL_FACTORY:
-                await call.stop()
-            else:
-                await call.leave_group_call(chat_id)
+            await call.stop()
             active_chats.remove(chat_id)
             try:
                 await app.send_message(chat_id, "🔴 **Carnal Bot** has left the voice chat! ❌")
@@ -1015,9 +992,6 @@ async def main():
     
     try:
         await app.start()
-        if not USE_GROUP_CALL_FACTORY:
-            await call.start()
-        
         await log_event("BOT_STARTING", "Carnal Live Mic Userbot is starting up...")
         startup_msg = """
 ✅ **Carnal Live Mic Userbot Started!**
