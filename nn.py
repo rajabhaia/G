@@ -1,4 +1,3 @@
-
 import asyncio
 import os
 import platform
@@ -45,7 +44,7 @@ SESSION_STRING = "BQGjilQAk2YfqjsMhrMKSeOlImREH0a1wx-x1FAOyO-8EcUSqiXqEFUXtshDGL
 
 # ADMIN CONFIGURATION
 ADMIN_IDS = [8234480169]  # Replace with your User ID
-ALLOWED_GROUP_IDS = [-1002959335958]  # Replace with allowed Group ID
+ALLOWED_GROUP_IDS = []  # Removed specific ID to allow in any group where user is admin
 
 # SECURITY CONFIG
 MAX_WARNINGS = 3
@@ -535,6 +534,8 @@ async def is_allowed(user_id: int, chat_id: int) -> bool:
         return True
     if user_id in ADMIN_IDS:
         return True
+    if await is_admin(user_id, chat_id):  # Allow if user is admin in the group
+        return True
     if chat_id in ALLOWED_GROUP_IDS:
         return True
     return False
@@ -582,7 +583,7 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             await call.play(stream_params)
         active_chats.add(chat_id)
         # Send join notification to group
-        if chat_id in ALLOWED_GROUP_IDS:
+        if chat_id in ALLOWED_GROUP_IDS or True:  # Always send if in group
             try:
                 await app.send_message(chat_id, "🎤 **Carnal Bot** has joined the voice chat! 🚀")
                 await log_event("VOICE_CHAT_JOINED", f"Chat ID: {chat_id}")
@@ -602,7 +603,7 @@ async def stop_stream(chat_id: int):
                 await call.leave_group_call(chat_id)
             active_chats.remove(chat_id)
             # Send leave notification to group
-            if chat_id in ALLOWED_GROUP_IDS:
+            if chat_id in ALLOWED_GROUP_IDS or True:
                 try:
                     await app.send_message(chat_id, "🔴 **Carnal Bot** has left the voice chat! ❌")
                     await log_event("VOICE_CHAT_LEFT", f"Chat ID: {chat_id}")
