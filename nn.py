@@ -39,7 +39,7 @@ except ImportError:
 API_ID = 27494996
 API_HASH = "791274de917e999ebab112e60f3a163e"
 SESSION_NAME = "carnal_bot"
-SESSION_STRING = "BQGjilQAk2YfqjsMhrMKSeOlImREH0a1wx-x1FAOyO-8EcUSqiXqEFUXtshDGLdVeUDYheKHiNzf0Rl_mUkyzBQSGU-G1Pme0jEpJx37VA4XOapQlGv4qD7dqXw44vC7m5hzoT2esgTJH4TkOwnY3XSCoxttoZYk881AyV5grFbX43s6buAgbiCLdk1nRCJMgKQkH6fT8v9bZVFsyiK0fNl40Cfmc8QKVxjOBrP73Iogq2OPWTrwUQw8ouGNhvjcC68NZHulZpdhUC1HqKu3kJrOQ-u3q4Wk9o407pJLQ2mEnl0pRTH3pm1GVMw5vfWsqD6LFlv7sikt1-1VdbpCv7AnX6SRsQAAAAHq0DIpAA"
+SESSION_STRING = "BQGjilQAS1kPmYaEVDtBai9stjXugRDZDCHU-iR_3YpsJDP-j00C8zWcogijMPSfBS6Jba7LCVcGcpwpSPzRNB_bStbn12IGbbty9C9fdYV_Zr6JE9cLsVzHl80EDNs0WKytWknPSZoO-g9oW_L0bxjYnXWtbg6F4LjxrXDAjaZU0dMvJ1kp-WPiMqSDTeSo-0WQxDW9-ACyQSA-qJOy0enviXAk92rvMnQoo7YpIplBkxDUbUWhJdVZxiqZMjYZZXb5VObYKbhvEx9kwnaKeKb_nqAdEFdjO1B3p9zC8M5D8X5mhDz9y7myRw3UzwFHJ7qJNdlE7_K4QToW6yRhJQwO7vF0gAAAAAHq0DIpAA"
 
 # ADMIN CONFIGURATION
 ADMIN_IDS = [8234480169]  # Replace with your User ID
@@ -282,7 +282,7 @@ class AudioSettings:
             f"acompressor=threshold={self.settings['compressor_threshold']}dB:"
             f"ratio={self.settings['compressor_ratio']}:attack=5:release=1000:"
             f"makeup={self.settings['compressor_makeup']},"
-            f"aecho={self.settings['echo_level']}:{ self.settings['reverb_delay']}:"
+            f"aecho={self.settings['echo_level']}:{self.settings['reverb_delay']}:"
             f"{self.settings['reverb_decay']}:0.3,"
             f"volume={self.settings['volume_boost']},"
             f"loudnorm=I=-5:TP=-1.5:LRA=11"
@@ -305,7 +305,8 @@ app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH, session_string=SESS
 # Initialize pytgcalls
 if USE_GROUP_CALL_FACTORY:
     print("Using GroupCallFactory for pytgcalls...")
-    call = GroupCallFactory(app)
+    group_call_factory = GroupCallFactory(app)
+    call = group_call_factory.get_group_call()
 else:
     print("Using PyTgCalls...")
     call = PyTgCalls(app)
@@ -501,13 +502,13 @@ async def is_admin(user_id: int, chat_id: int) -> bool:
 async def is_allowed(user_id: int, chat_id: int) -> bool:
     if security_system.is_blocked(user_id):
         return False
-    if chat_id == user_id:  # Allow in private chats
+    if chat_id == user_id:
         return True
-    if user_id in ADMIN_IDS:  # Allow global admins
+    if user_id in ADMIN_IDS:
         return True
-    if await is_admin(user_id, chat_id):  # Allow group admins
+    if await is_admin(user_id, chat_id):
         return True
-    if chat_id in ALLOWED_GROUP_IDS:  # Allow in specified groups
+    if chat_id in ALLOWED_GROUP_IDS:
         return True
     return False
 
@@ -537,7 +538,6 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             raise Exception(f"Failed to start FFmpeg: {e}")
 
     try:
-        stream_params = None
         if not USE_GROUP_CALL_FACTORY:
             stream_params = AudioPiped(
                 output_path,
@@ -549,8 +549,8 @@ async def start_stream(chat_id: int, for_song: bool = False, song_path: str = No
             await call.join_group_call(chat_id, stream_params)
         else:
             stream_params = output_path
-            await call.start(chat_id)
-            await call.play(stream_params)
+            await call.start(chat_id)  # Start the group call
+            await call.play(stream_params)  # Play the audio stream
         active_chats.add(chat_id)
         try:
             await app.send_message(chat_id, "🎤 **Carnal Bot** has joined the voice chat! 🚀")
@@ -807,7 +807,7 @@ async def cmd_carnal(client, message: Message):
     try:
         audio_settings.set_carnal_mode()
         await start_stream(chat_id)
-        reply = await message.reply_text("🔥 𝙐𝙇𝙏𝙄𝙈𝘼𝙏𝙀 𝘾𝘼𝙍𝙉𝘼𝙇 𝙈𝙊𝘿𝙀 𝘼𝘾𝙏𝙄𝙑𝘼𝙇𝙏𝙀𝘿! 😈")
+        reply = await message.reply_text("🔥 𝙐𝙇𝙏𝙄𝙈𝘼𝙏𝙀 𝘾𝘼𝙍𝙉𝘼𝙇 𝙈𝙊𝘿𝙀 𝘼𝘾𝙏𝙄𝙑𝘼𝙏𝙀𝘿! 😈")
         asyncio.create_task(delete_message_with_delay(reply))
         await log_event("CARNAL_MODE", f"Chat ID: {chat_id}\nActivated by: {message.from_user.mention}")
     except FloodWait as e:
@@ -868,7 +868,7 @@ async def cmd_play(client, message: Message):
 @app.on_message(filters.command(["activevc"]) & allowed_only)
 async def cmd_activevc(client, message: Message):
     if not active_chats:
-        reply = await message.reply_text("❌ 𝙆𝙊𝙄 𝘼𝘾𝙏𝙄𝙑𝙀 𝙑𝙊𝙄𝘾𝙀 𝘾𝙃𝘼𝙏 𝙉𝘼𝙃𝙄 𝙃𝘼𝙄")
+        reply = await message.reply_text("❌ 𝙆𝙊𝙄 𝘼𝘾𝙏𝙄𝙑𝙀 𝙑𝙊𝙄𝘾𝙀 𝘾𝙃𝘼𝙏 𝙉𝘼𝙇𝙄 𝙃𝘼𝙄")
         asyncio.create_task(delete_message_with_delay(reply))
         return
     
